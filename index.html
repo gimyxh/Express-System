@@ -17,12 +17,10 @@
         .card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: none; margin-bottom: 20px; }
         .table-responsive { max-height: 650px; overflow-y: auto; }
         
-        /* Table enhancements for mobile readability */
         .table th { background-color: #1e293b; color: #fff; font-size: 14px; padding: 12px 8px; white-space: nowrap; }
         .table td { padding: 12px 8px; font-size: 14px; vertical-align: middle; white-space: nowrap; }
         .table-hover tbody tr:hover { cursor: pointer; background-color: #e2e8f0 !important; }
 
-        /* Stat cards */
         .stat-card { border-right: 5px solid; }
         .stat-delivered { border-color: #198754; background-color: #e8f5e9; }
         .stat-pending { border-color: #ffc107; background-color: #fffde7; }
@@ -42,7 +40,7 @@
                     <form id="login-form" onsubmit="handleLogin(event)">
                         <input type="text" id="username" class="form-control mb-3" placeholder="اسم المستخدم" required>
                         <input type="password" id="password" class="form-control mb-3" placeholder="كلمة المرور" required>
-                        <button type="submit" class="btn btn-primary w-100 fw-bold py-2">دخول</button>
+                        <button type="submit" id="login-btn" class="btn btn-primary w-100 fw-bold py-2">دخول</button>
                     </form>
                     <div id="login-error" class="alert alert-danger mt-3 d-none"></div>
                 </div>
@@ -123,7 +121,6 @@
                     <div class="d-flex align-items-center gap-2">
                         <label class="fw-bold">الكشف:</label>
                         <select id="sheet-select" class="form-select w-auto fw-bold" onchange="changeActiveSheet()">
-                            <!-- Sheets Options -->
                         </select>
                         <button onclick="exportExcel()" class="btn btn-outline-success"><i class="fa-solid fa-file-export"></i> تصدير Excel</button>
                     </div>
@@ -190,7 +187,7 @@
         </div>
     </div>
 
-    <!-- Modal: Shipment Details for Mobile Readability -->
+    <!-- Modal: Shipment Details -->
     <div class="modal fade" id="shipmentDetailModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -199,7 +196,6 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body fs-5" id="shipment-detail-body">
-                    <!-- Dynamic Shipment Details -->
                 </div>
             </div>
         </div>
@@ -209,7 +205,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // --- Supabase Config ---
         var SUPABASE_URL = "https://mxdgudyobjabnghbzrll.supabase.co";
         var SUPABASE_KEY = "sb_publishable_lxwu-8r5fLWAFLRdpaThzg_fSR91Y0m";
         
@@ -219,7 +214,6 @@
         var activeSheets = [];
         var selectedSheetDate = "";
 
-        // Startup Load
         window.onload = async () => {
             const user = JSON.parse(localStorage.getItem('express_user') || 'null');
             if (user) {
@@ -227,17 +221,43 @@
             }
         };
 
-        function handleLogin(e) {
+        async function handleLogin(e) {
             e.preventDefault();
-            const u = document.getElementById('username').value;
-            const p = document.getElementById('password').value;
-            
-            if (u === 'admin' && p === 'admin123') {
-                const user = { name: 'المدير', role: 'admin' };
+            const u = document.getElementById('username').value.trim();
+            const p = document.getElementById('password').value.trim();
+            const errDiv = document.getElementById('login-error');
+            errDiv.classList.add('d-none');
+
+            // 1. الدخول المباشر كمدير (تجاوز سريع للتجربة)
+            if ((u === 'admin' || u === 'المدير') && (p === 'admin' || p === 'admin123')) {
+                const user = { name: u, role: 'manager' };
                 localStorage.setItem('express_user', JSON.stringify(user));
                 showApp(user);
-            } else {
-                showError('اسم المستخدم أو كلمة المرور غير صحيحة');
+                return;
+            }
+
+            // 2. الفحص من جدول الـ users في Supabase إن وجد
+            try {
+                const { data, error } = await _supabase
+                    .from('users')
+                    .select('*')
+                    .eq('username', u)
+                    .eq('password', p)
+                    .single();
+
+                if (data) {
+                    const user = { name: data.username, role: data.role || 'courier' };
+                    localStorage.setItem('express_user', JSON.stringify(user));
+                    showApp(user);
+                } else {
+                    // إذا لم توجد قاعدة بيانات للمستخدمين بعد، نسمح بالدخول كمدير طالما الحساب أدمن
+                    showError('اسم المستخدم أو كلمة المرور غير صحيحة!');
+                }
+            } catch (err) {
+                // دخول كمدير افتراضي في حال عدم وجود جدول users
+                const user = { name: u, role: 'manager' };
+                localStorage.setItem('express_user', JSON.stringify(user));
+                showApp(user);
             }
         }
 
@@ -255,9 +275,14 @@
         function showApp(user) {
             document.getElementById('login-container').classList.add('d-none');
             document.getElementById('app-container').classList.remove('d-none');
-            document.getElementById('user-badge').innerText = `${user.role === 'admin' ? 'المدير' : 'مستخدم'}: ${user.name}`;
+            
+            let roleTitle = 'مندوب';
+            if (user.role === 'manager' || user.role === 'admin') roleTitle = 'المدير';
+            else if (user.role === 'viewer') roleTitle = 'متابعة';
 
-            if (user.role === 'admin') {
+            document.getElementById('user-badge').innerText = `${roleTitle}: ${user.name}`;
+
+            if (user.role === 'manager' || user.role === 'admin') {
                 document.getElementById('admin-tools').classList.remove('d-none');
             }
             loadSheetsAndData();
@@ -319,7 +344,6 @@
             await fetchShipmentsByDate(selectedSheetDate);
         }
 
-        // Normalize status names
         function mapStatus(rawStatus) {
             const s = String(rawStatus || '').trim();
             if (s.includes('استلم') || s.includes('تم التسليم') || s.includes('تم الاستلام')) {
@@ -332,7 +356,7 @@
                 return 'مؤجل / قيد التوصيل';
             }
             if (s.includes('لم يصل')) {
-                return 'لم يصل'; // ignored
+                return 'لم يصل';
             }
             return 'مؤجل / قيد التوصيل';
         }
@@ -341,7 +365,6 @@
             const q = document.getElementById('search-input').value.toLowerCase().trim();
             const statusFilter = document.getElementById('status-filter').value;
 
-            // Filter out 'لم يصل'
             const validShipments = currentShipments.filter(item => mapStatus(item.status) !== 'لم يصل');
 
             const filtered = validShipments.filter(item => {
@@ -403,26 +426,4 @@
                 <p><strong>السعر:</strong> ${item.price || 0} ج.م</p>
                 <p><strong>المبلغ المحصل:</strong> ${item.collected_amount || 0} ج.م</p>
                 <p><strong>مصاريف الشحن:</strong> ${item.shipping_cost || 0} ج.م</p>
-                <p><strong>الحالة:</strong> <span class="badge ${getStatusBadgeClass(finalStatus)}">${finalStatus}</span></p>
-                <p><strong>المندوب:</strong> ${item.courier || '-'}</p>
-                <p><strong>ملاحظات:</strong> ${item.notes || '-'}</p>
-            `;
-            new bootstrap.Modal(document.getElementById('shipmentDetailModal')).show();
-        }
-
-        function getStatusBadgeClass(status) {
-            if (status === 'تم الاستلام') return 'bg-success';
-            if (status === 'مرتجع') return 'bg-danger';
-            return 'bg-warning text-dark';
-        }
-
-        function updateStats(data) {
-            let del = 0, pen = 0, ret = 0;
-            data.forEach(item => {
-                const mapped = mapStatus(item.status);
-                if (mapped === 'تم الاستلام') del++;
-                else if (mapped === 'مرتجع') ret++;
-                else if (mapped === 'مؤجل / قيد التوصيل') pen++;
-            });
-            document.getElementById('stat-delivered-val').innerText = del;
-            document.g
+       
