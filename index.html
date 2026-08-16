@@ -13,10 +13,17 @@
     <!-- SheetJS (Excel) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: none; margin-bottom: 20px; }
-        .table-responsive { max-height: 600px; overflow-y: auto; }
-        .stat-card { border-right: 4px solid; }
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 15px; }
+        .card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: none; margin-bottom: 20px; }
+        .table-responsive { max-height: 650px; overflow-y: auto; }
+        
+        /* Table enhancements for mobile readability */
+        .table th { background-color: #1e293b; color: #fff; font-size: 14px; padding: 12px 8px; white-space: nowrap; }
+        .table td { padding: 12px 8px; font-size: 14px; vertical-align: middle; white-space: nowrap; }
+        .table-hover tbody tr:hover { cursor: pointer; background-color: #e2e8f0 !important; }
+
+        /* Stat cards */
+        .stat-card { border-right: 5px solid; }
         .stat-delivered { border-color: #198754; background-color: #e8f5e9; }
         .stat-pending { border-color: #ffc107; background-color: #fffde7; }
         .stat-returned { border-color: #dc3545; background-color: #ffebee; }
@@ -35,7 +42,7 @@
                     <form id="login-form" onsubmit="handleLogin(event)">
                         <input type="text" id="username" class="form-control mb-3" placeholder="اسم المستخدم" required>
                         <input type="password" id="password" class="form-control mb-3" placeholder="كلمة المرور" required>
-                        <button type="submit" class="btn btn-primary w-100">دخول</button>
+                        <button type="submit" class="btn btn-primary w-100 fw-bold py-2">دخول</button>
                     </form>
                     <div id="login-error" class="alert alert-danger mt-3 d-none"></div>
                 </div>
@@ -45,27 +52,27 @@
 
     <!-- Main App UI -->
     <div id="app-container" class="d-none">
-        <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4 shadow-sm">
             <div class="container-fluid">
-                <a class="navbar-brand" href="#"><i class="fa-solid fa-truck-fast"></i> نظام الشحن الاحترافي</a>
+                <a class="navbar-brand fw-bold" href="#"><i class="fa-solid fa-truck-fast me-2"></i> نظام الشحن الاحترافي</a>
                 <div class="d-flex align-items-center text-white">
-                    <span class="me-3" id="user-badge"></span>
+                    <span class="me-3 fw-bold" id="user-badge"></span>
                     <button onclick="logout()" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-right-from-bracket"></i> خروج</button>
                 </div>
             </div>
         </nav>
 
-        <div class="container-fluid px-4">
+        <div class="container-fluid px-3 px-md-4">
             
             <!-- Filter & Search -->
             <div class="card p-3">
-                <h5><i class="fa-solid fa-filter text-primary"></i> بحث وفلترة داخل الكشف</h5>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <input type="text" id="search-input" oninput="renderTable()" class="form-control" placeholder="🔍 بحث بالاسم، الكود، الهاتف، العنوان، أو المندوب...">
+                <h6 class="fw-bold mb-3"><i class="fa-solid fa-filter text-primary"></i> بحث وفلترة داخل الكشف</h6>
+                <div class="row g-2">
+                    <div class="col-md-7">
+                        <input type="text" id="search-input" oninput="renderTable()" class="form-control form-control-lg" placeholder="🔍 بحث بالاسم، الكود، الهاتف، العنوان، أو المندوب...">
                     </div>
-                    <div class="col-md-6">
-                        <select id="status-filter" onchange="renderTable()" class="form-select">
+                    <div class="col-md-5">
+                        <select id="status-filter" onchange="renderTable()" class="form-select form-select-lg">
                             <option value="">جميع الحالات</option>
                             <option value="تم الاستلام">تم الاستلام</option>
                             <option value="مؤجل / قيد التوصيل">مؤجل / قيد التوصيل</option>
@@ -76,23 +83,23 @@
             </div>
 
             <!-- Stats -->
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="card p-3 stat-card stat-delivered">
-                        <h6>تم الاستلام</h6>
-                        <h3 id="stat-delivered-val">0</h3>
+            <div class="row g-2">
+                <div class="col-4">
+                    <div class="card p-3 stat-card stat-delivered text-center">
+                        <h6 class="text-success fw-bold">تم الاستلام</h6>
+                        <h2 id="stat-delivered-val" class="mb-0 fw-bold">0</h2>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card p-3 stat-card stat-pending">
-                        <h6>مؤجل / قيد التوصيل</h6>
-                        <h3 id="stat-pending-val">0</h3>
+                <div class="col-4">
+                    <div class="card p-3 stat-card stat-pending text-center">
+                        <h6 class="text-warning text-dark fw-bold">مؤجل / قيد التوصيل</h6>
+                        <h2 id="stat-pending-val" class="mb-0 fw-bold">0</h2>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card p-3 stat-card stat-returned">
-                        <h6>مرتجع</h6>
-                        <h3 id="stat-returned-val">0</h3>
+                <div class="col-4">
+                    <div class="card p-3 stat-card stat-returned text-center">
+                        <h6 class="text-danger fw-bold">مرتجع</h6>
+                        <h2 id="stat-returned-val" class="mb-0 fw-bold">0</h2>
                     </div>
                 </div>
             </div>
@@ -100,23 +107,22 @@
             <!-- Admin Tools -->
             <div id="admin-tools" class="card p-3 d-none">
                 <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <span class="fw-bold me-2"><i class="fa-solid fa-user-gear"></i> أدوات المدير:</span>
-                    <label class="btn btn-success">
+                    <span class="fw-bold me-2"><i class="fa-solid fa-user-gear"></i> أدوات التحكم:</span>
+                    <label class="btn btn-success btn-lg">
                         <i class="fa-solid fa-file-excel"></i> استيراد Excel
                         <input type="file" id="excel-input" accept=".xlsx, .xls" class="d-none" onchange="importExcel(event)">
                     </label>
-                    <button class="btn btn-primary" onclick="openAddShipmentModal()"><i class="fa-solid fa-plus"></i> إضافة شحنة</button>
-                    <button class="btn btn-dark" onclick="openAddCourierModal()"><i class="fa-solid fa-user-plus"></i> إضافة مندوب</button>
+                    <button class="btn btn-dark btn-lg" onclick="openAddUserModal()"><i class="fa-solid fa-user-plus"></i> إضافة أشخاص</button>
                 </div>
             </div>
 
             <!-- Table & Sheets Selector -->
             <div class="card p-3">
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                    <h5><i class="fa-solid fa-list-check text-primary"></i> جدول الشحنات</h5>
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-list-check text-primary"></i> جدول الشحنات</h5>
                     <div class="d-flex align-items-center gap-2">
                         <label class="fw-bold">الكشف:</label>
-                        <select id="sheet-select" class="form-select w-auto" onchange="changeActiveSheet()">
+                        <select id="sheet-select" class="form-select w-auto fw-bold" onchange="changeActiveSheet()">
                             <!-- Sheets Options -->
                         </select>
                         <button onclick="exportExcel()" class="btn btn-outline-success"><i class="fa-solid fa-file-export"></i> تصدير Excel</button>
@@ -124,8 +130,8 @@
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped align-middle text-center">
-                        <thead class="table-dark">
+                    <table class="table table-hover table-bordered align-middle text-center">
+                        <thead>
                             <tr>
                                 <th>مسلسل</th>
                                 <th>الكود</th>
@@ -151,6 +157,57 @@
         </div>
     </div>
 
+    <!-- Modal: Add Person -->
+    <div class="modal fade" id="addUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fa-solid fa-user-plus"></i> إضافة مستخدم جديد</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-user-form" onsubmit="saveUser(event)">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">صلاحية المستخدم</label>
+                            <select id="new-user-role" class="form-select" required>
+                                <option value="manager">مدير</option>
+                                <option value="courier">مندوب</option>
+                                <option value="viewer">متابعة</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">اسم المستخدم</label>
+                            <input type="text" id="new-username" class="form-control" required placeholder="مثال: ahmed_courier">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">كلمة السر</label>
+                            <input type="password" id="new-user-pass" class="form-control" required placeholder="******">
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 fw-bold">حفظ المستخدم</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Shipment Details for Mobile Readability -->
+    <div class="modal fade" id="shipmentDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title"><i class="fa-solid fa-box"></i> تفاصيل الشحنة</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body fs-5" id="shipment-detail-body">
+                    <!-- Dynamic Shipment Details -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
         // --- Supabase Config ---
         var SUPABASE_URL = "https://mxdgudyobjabnghbzrll.supabase.co";
@@ -175,7 +232,6 @@
             const u = document.getElementById('username').value;
             const p = document.getElementById('password').value;
             
-            // Login check
             if (u === 'admin' && p === 'admin123') {
                 const user = { name: 'المدير', role: 'admin' };
                 localStorage.setItem('express_user', JSON.stringify(user));
@@ -199,7 +255,7 @@
         function showApp(user) {
             document.getElementById('login-container').classList.add('d-none');
             document.getElementById('app-container').classList.remove('d-none');
-            document.getElementById('user-badge').innerText = `${user.role === 'admin' ? 'المدير' : 'مندوب'}: ${user.name}`;
+            document.getElementById('user-badge').innerText = `${user.role === 'admin' ? 'المدير' : 'مستخدم'}: ${user.name}`;
 
             if (user.role === 'admin') {
                 document.getElementById('admin-tools').classList.remove('d-none');
@@ -209,7 +265,6 @@
 
         async function loadSheetsAndData() {
             try {
-                // Fetch unique dates
                 const { data, error } = await _supabase
                     .from('shipments')
                     .select('sheet_date')
@@ -264,11 +319,32 @@
             await fetchShipmentsByDate(selectedSheetDate);
         }
 
+        // Normalize status names
+        function mapStatus(rawStatus) {
+            const s = String(rawStatus || '').trim();
+            if (s.includes('استلم') || s.includes('تم التسليم') || s.includes('تم الاستلام')) {
+                return 'تم الاستلام';
+            }
+            if (s.includes('مرتجع')) {
+                return 'مرتجع';
+            }
+            if (s.includes('مؤجل') || s.includes('تاجيل') || s.includes('تأجيل')) {
+                return 'مؤجل / قيد التوصيل';
+            }
+            if (s.includes('لم يصل')) {
+                return 'لم يصل'; // ignored
+            }
+            return 'مؤجل / قيد التوصيل';
+        }
+
         function renderTable() {
             const q = document.getElementById('search-input').value.toLowerCase().trim();
             const statusFilter = document.getElementById('status-filter').value;
 
-            const filtered = currentShipments.filter(item => {
+            // Filter out 'لم يصل'
+            const validShipments = currentShipments.filter(item => mapStatus(item.status) !== 'لم يصل');
+
+            const filtered = validShipments.filter(item => {
                 const matchQuery = !q || 
                     (item.name && item.name.toLowerCase().includes(q)) ||
                     (item.code && item.code.toLowerCase().includes(q)) ||
@@ -276,12 +352,13 @@
                     (item.address && item.address.toLowerCase().includes(q)) ||
                     (item.courier && item.courier.toLowerCase().includes(q));
 
-                const matchStatus = !statusFilter || item.status === statusFilter;
+                const mapped = mapStatus(item.status);
+                const matchStatus = !statusFilter || mapped === statusFilter;
                 return matchQuery && matchStatus;
             });
 
             renderTableData(filtered);
-            updateStats(filtered);
+            updateStats(validShipments);
         }
 
         function renderTableData(data) {
@@ -289,28 +366,48 @@
             tbody.innerHTML = '';
 
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" class="text-center p-4 text-muted">لا توجد شحنات لعرضها.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="text-center p-4 text-muted fs-5">لا توجد شحنات لعرضها.</td></tr>';
                 return;
             }
 
             data.forEach((item, i) => {
+                const finalStatus = mapStatus(item.status);
                 tbody.innerHTML += `
-                    <tr>
+                    <tr onclick='showShipmentDetails(${JSON.stringify(item)})'>
                         <td>${item.serial || (i + 1)}</td>
-                        <td>${item.code || '-'}</td>
-                        <td class="fw-bold">${item.name || '-'}</td>
+                        <td class="fw-bold">${item.code || '-'}</td>
+                        <td class="fw-bold text-primary">${item.name || '-'}</td>
                         <td>${item.phone || '-'}</td>
                         <td>${item.address || '-'}</td>
                         <td>${item.sender_company || '-'}</td>
                         <td>${item.price || 0}</td>
                         <td>${item.collected_amount || 0}</td>
                         <td>${item.shipping_cost || 0}</td>
-                        <td><span class="badge ${getStatusBadgeClass(item.status)}">${item.status || 'قيد التوصيل'}</span></td>
+                        <td><span class="badge ${getStatusBadgeClass(finalStatus)} fs-6">${finalStatus}</span></td>
                         <td>${item.courier || '-'}</td>
                         <td>${item.notes || '-'}</td>
                     </tr>
                 `;
             });
+        }
+
+        function showShipmentDetails(item) {
+            const finalStatus = mapStatus(item.status);
+            const body = document.getElementById('shipment-detail-body');
+            body.innerHTML = `
+                <p><strong>الكود:</strong> ${item.code || '-'}</p>
+                <p><strong>اسم العميل:</strong> ${item.name || '-'}</p>
+                <p><strong>الهاتف:</strong> ${item.phone || '-'}</p>
+                <p><strong>العنوان:</strong> ${item.address || '-'}</p>
+                <p><strong>الشركة الراسلة:</strong> ${item.sender_company || '-'}</p>
+                <p><strong>السعر:</strong> ${item.price || 0} ج.م</p>
+                <p><strong>المبلغ المحصل:</strong> ${item.collected_amount || 0} ج.م</p>
+                <p><strong>مصاريف الشحن:</strong> ${item.shipping_cost || 0} ج.م</p>
+                <p><strong>الحالة:</strong> <span class="badge ${getStatusBadgeClass(finalStatus)}">${finalStatus}</span></p>
+                <p><strong>المندوب:</strong> ${item.courier || '-'}</p>
+                <p><strong>ملاحظات:</strong> ${item.notes || '-'}</p>
+            `;
+            new bootstrap.Modal(document.getElementById('shipmentDetailModal')).show();
         }
 
         function getStatusBadgeClass(status) {
@@ -322,122 +419,10 @@
         function updateStats(data) {
             let del = 0, pen = 0, ret = 0;
             data.forEach(item => {
-                if (item.status === 'تم الاستلام') del++;
-                else if (item.status === 'مرتجع') ret++;
-                else pen++;
+                const mapped = mapStatus(item.status);
+                if (mapped === 'تم الاستلام') del++;
+                else if (mapped === 'مرتجع') ret++;
+                else if (mapped === 'مؤجل / قيد التوصيل') pen++;
             });
             document.getElementById('stat-delivered-val').innerText = del;
-            document.getElementById('stat-pending-val').innerText = pen;
-            document.getElementById('stat-returned-val').innerText = ret;
-        }
-
-        // --- Import Excel (Starts Row 2) & Rolling 6 Sheets ---
-        async function importExcel(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = async (evt) => {
-                try {
-                    const workbook = XLSX.read(evt.target.result, { type: 'binary' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const rawJson = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-                    if (rawJson.length < 2) {
-                        alert("الشيت فارغ أو لا يحتوي على صفوف بيانات كافية!");
-                        return;
-                    }
-
-                    // Row 2 headers (Index 1)
-                    const headers = rawJson[1].map(h => String(h || '').trim());
-                    const rows = rawJson.slice(2);
-
-                    const todayStr = new Date().toISOString().split('T')[0];
-
-                    const parsedData = rows.map(row => {
-                        let obj = { sheet_date: todayStr };
-                        headers.forEach((h, idx) => {
-                            const val = row[idx] !== undefined ? String(row[idx]).trim() : '';
-                            if (h.includes('مسلسل')) obj.serial = val;
-                            else if (h.includes('الكود')) obj.code = val;
-                            else if (h.includes('الاسم') || h.includes('الاســــــــم')) obj.name = val;
-                            else if (h.includes('الهاتف') || h.includes('الرقم') || h.includes('الموبايل')) obj.phone = val;
-                            else if (h.includes('العنوان') || h.includes('المافظه') || h.includes('المحافظه')) obj.address = val;
-                            else if (h.includes('الشركه') || h.includes('الراسله')) obj.sender_company = val;
-                            else if (h.includes('السعر')) obj.price = parseFloat(val) || 0;
-                            else if (h.includes('المستلم') || h.includes('المحصل')) obj.collected_amount = parseFloat(val) || 0;
-                            else if (h.includes('الشحن')) obj.shipping_cost = parseFloat(val) || 0;
-                            else if (h.includes('الحاله') || h.includes('الحالة')) obj.status = val;
-                            else if (h.includes('ملاحظات')) obj.notes = val;
-                            else if (h.includes('المندوب')) obj.courier = val;
-                        });
-                        return obj;
-                    }).filter(r => r.name || r.code || r.phone);
-
-                    if (parsedData.length === 0) {
-                        alert("لم يتم العثور على شحنات صالحة للإضافة!");
-                        return;
-                    }
-
-                    // Insert shipments
-                    const { error } = await _supabase.from('shipments').insert(parsedData);
-                    if (error) throw error;
-
-                    // Rolling 6 Sheets Cleanup
-                    await cleanupOldSheets();
-
-                    alert(`تم رفع الشيت بنجاح! إجمالي الشحنات المضافة: ${parsedData.length}`);
-                    await loadSheetsAndData();
-
-                } catch (err) {
-                    alert("حدث خطأ أثناء رفع الشيت: " + err.message);
-                }
-            };
-            reader.readAsBinaryString(file);
-        }
-
-        async function cleanupOldSheets() {
-            try {
-                const { data } = await _supabase.from('shipments').select('sheet_date').order('created_at', { ascending: false });
-                const dates = [...new Set((data || []).map(i => i.sheet_date).filter(Boolean))];
-
-                if (dates.length > 6) {
-                    const datesToRemove = dates.slice(6);
-                    await _supabase.from('shipments').delete().in('sheet_date', datesToRemove);
-                }
-            } catch (err) {
-                console.error("Cleanup error:", err);
-            }
-        }
-
-        // --- Export to Excel ---
-        function exportExcel() {
-            if (currentShipments.length === 0) {
-                alert("لا توجد بيانات لتصديرها!");
-                return;
-            }
-
-            const exportData = currentShipments.map((item, i) => ({
-                "مسلسل": item.serial || (i + 1),
-                "الكود": item.code || '',
-                "الاسم": item.name || '',
-                "الهاتف": item.phone || '',
-                "العنوان": item.address || '',
-                "الشركة الراسلة": item.sender_company || '',
-                "السعر": item.price || 0,
-                "المبلغ المحصل": item.collected_amount || 0,
-                "مبلغ الشحن": item.shipping_cost || 0,
-                "الحالة": item.status || '',
-                "المندوب": item.courier || '',
-                "ملاحظات": item.notes || ''
-            }));
-
-            const ws = XLSX.utils.json_to_sheet(exportData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "الشحنات");
-            XLSX.writeFile(wb, `شحنات_${selectedSheetDate || 'الكشف'}.xlsx`);
-        }
-    </script>
-</body>
-    </html>
-    
+            document.g
