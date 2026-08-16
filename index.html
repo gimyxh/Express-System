@@ -36,12 +36,14 @@
                 <div class="card p-4 text-center">
                     <i class="fa-solid fa-truck-fast fa-3x text-primary mb-3"></i>
                     <h4>نظام الشحن الاحترافي</h4>
-                    <p class="text-muted">سجّل الدخول للمتابعة</p>
-                    <form id="login-form" onsubmit="handleLogin(event)">
-                        <input type="text" id="username" class="form-control mb-3" placeholder="اسم المستخدم" required>
-                        <input type="password" id="password" class="form-control mb-3" placeholder="كلمة المرور" required>
-                        <button type="submit" id="login-btn" class="btn btn-primary w-100 fw-bold py-2">دخول</button>
-                    </form>
+                    <p class="text-muted">سجّل الدخول للحساب الخاص بك</p>
+                    
+                    <div class="mb-3">
+                        <input type="text" id="username" class="form-control form-control-lg mb-3" placeholder="اسم المستخدم">
+                        <input type="password" id="password" class="form-control form-control-lg mb-3" placeholder="كلمة المرور">
+                        <button type="button" onclick="loginUser()" class="btn btn-primary w-100 fw-bold py-2 fs-5">دخول</button>
+                    </div>
+                    
                     <div id="login-error" class="alert alert-danger mt-3 d-none"></div>
                 </div>
             </div>
@@ -173,8 +175,8 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">اسم المستخدم</label>
-                            <input type="text" id="new-username" class="form-control" required placeholder="مثال: ahmed_courier">
+                            <label class="form-label fw-bold">اسم المستخدم (أو اسم المندوب مطابق للشيت)</label>
+                            <input type="text" id="new-username" class="form-control" required placeholder="مثال: أحمد">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">كلمة السر</label>
@@ -187,15 +189,18 @@
         </div>
     </div>
 
-    <!-- Modal: Shipment Details -->
+    <!-- Modal: Edit / View Shipment Details -->
     <div class="modal fade" id="shipmentDetailModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title"><i class="fa-solid fa-box"></i> تفاصيل الشحنة</h5>
+                    <h5 class="modal-title"><i class="fa-solid fa-box"></i> تفاصيل وتعديل الشحنة</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body fs-5" id="shipment-detail-body">
+                </div>
+                <div class="modal-footer" id="shipment-modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
                 </div>
             </div>
         </div>
@@ -210,6 +215,7 @@
         
         var _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        var currentUser = null;
         var currentShipments = [];
         var activeSheets = [];
         var selectedSheetDate = "";
@@ -217,47 +223,48 @@
         window.onload = async () => {
             const user = JSON.parse(localStorage.getItem('express_user') || 'null');
             if (user) {
+                currentUser = user;
                 showApp(user);
             }
         };
 
-        async function handleLogin(e) {
-            e.preventDefault();
+        async function loginUser() {
             const u = document.getElementById('username').value.trim();
             const p = document.getElementById('password').value.trim();
             const errDiv = document.getElementById('login-error');
             errDiv.classList.add('d-none');
 
-            // 1. الدخول المباشر كمدير (تجاوز سريع للتجربة)
-            if ((u === 'admin' || u === 'المدير') && (p === 'admin' || p === 'admin123')) {
-                const user = { name: u, role: 'manager' };
-                localStorage.setItem('express_user', JSON.stringify(user));
-                showApp(user);
+            if (!u || !p) {
+                showError('يرجى إدخال اسم المستخدم وكلمة المرور');
                 return;
             }
 
-            // 2. الفحص من جدول الـ users في Supabase إن وجد
+            // 1. الدخول الافتراضي كمدير
+            if ((u === 'admin' || u === 'المدير') && (p === 'admin' || p === 'admin123')) {
+                currentUser = { name: u, role: 'manager' };
+                localStorage.setItem('express_user', JSON.stringify(currentUser));
+                showApp(currentUser);
+                return;
+            }
+
+            // 2. الفحص من جدول الـ users في Supabase
             try {
                 const { data, error } = await _supabase
                     .from('users')
                     .select('*')
                     .eq('username', u)
                     .eq('password', p)
-                    .single();
+                    .maybeSingle();
 
                 if (data) {
-                    const user = { name: data.username, role: data.role || 'courier' };
-                    localStorage.setItem('express_user', JSON.stringify(user));
-                    showApp(user);
+                    currentUser = { name: data.username, role: data.role || 'courier' };
+                    localStorage.setItem('express_user', JSON.stringify(currentUser));
+                    showApp(currentUser);
                 } else {
-                    // إذا لم توجد قاعدة بيانات للمستخدمين بعد، نسمح بالدخول كمدير طالما الحساب أدمن
                     showError('اسم المستخدم أو كلمة المرور غير صحيحة!');
                 }
             } catch (err) {
-                // دخول كمدير افتراضي في حال عدم وجود جدول users
-                const user = { name: u, role: 'manager' };
-                localStorage.setItem('express_user', JSON.stringify(user));
-                showApp(user);
+                showError('تعذر الاتصال بالسيرفر، تحقق من الشبكة');
             }
         }
 
@@ -325,12 +332,16 @@
 
         async function fetchShipmentsByDate(dateStr) {
             try {
-                const { data, error } = await _supabase
-                    .from('shipments')
-                    .select('*')
-                    .eq('sheet_date', dateStr);
+                let query = _supabase.from('shipments').select('*').eq('sheet_date', dateStr);
+                
+                // إذا كان المستخدم مندوب، يرى شحناته فقط
+                if (currentUser && currentUser.role === 'courier') {
+                    query = query.ilike('courier', `%${currentUser.name}%`);
+                }
 
+                const { data, error } = await query;
                 if (error) throw error;
+
                 currentShipments = data || [];
                 renderTable();
             } catch (err) {
@@ -404,8 +415,8 @@
                         <td>${item.address || '-'}</td>
                         <td>${item.sender_company || '-'}</td>
                         <td>${item.price || 0}</td>
-                        <td>${item.collected_amount || 0}</td>
-                        <td>${item.shipping_cost || 0}</td>
+                        <td class="text-success fw-bold">${item.collected_amount || 0}</td>
+                        <td class="text-info text-dark fw-bold">${item.shipping_cost || 0}</td>
                         <td><span class="badge ${getStatusBadgeClass(finalStatus)} fs-6">${finalStatus}</span></td>
                         <td>${item.courier || '-'}</td>
                         <td>${item.notes || '-'}</td>
@@ -417,13 +428,7 @@
         function showShipmentDetails(item) {
             const finalStatus = mapStatus(item.status);
             const body = document.getElementById('shipment-detail-body');
-            body.innerHTML = `
-                <p><strong>الكود:</strong> ${item.code || '-'}</p>
-                <p><strong>اسم العميل:</strong> ${item.name || '-'}</p>
-                <p><strong>الهاتف:</strong> ${item.phone || '-'}</p>
-                <p><strong>العنوان:</strong> ${item.address || '-'}</p>
-                <p><strong>الشركة الراسلة:</strong> ${item.sender_company || '-'}</p>
-                <p><strong>السعر:</strong> ${item.price || 0} ج.م</p>
-                <p><strong>المبلغ المحصل:</strong> ${item.collected_amount || 0} ج.م</p>
-                <p><strong>مصاريف الشحن:</strong> ${item.shipping_cost || 0} ج.م</p>
-       
+            const footer = document.getElementById('shipment-modal-footer');
+
+            const isManager = currentUser.role === 'manager' || currentUser.role === 'admin';
+        
