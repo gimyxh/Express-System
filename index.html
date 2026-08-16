@@ -153,13 +153,14 @@
 
     <script>
         // --- Supabase Config ---
-        const SUPABASE_URL = "https://mxdgudyobjabnghbzrll.supabase.co/rest/v1/";
-        const SUPABASE_KEY = "sb_publishable_lxwu-8r5fLWAFLRdpaThzg_fSR91Y0m";
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        var SUPABASE_URL = "https://mxdgudyobjabnghbzrll.supabase.co";
+        var SUPABASE_KEY = "sb_publishable_lxwu-8r5fLWAFLRdpaThzg_fSR91Y0m";
+        
+        var _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let currentShipments = [];
-        let activeSheets = [];
-        let selectedSheetDate = "";
+        var currentShipments = [];
+        var activeSheets = [];
+        var selectedSheetDate = "";
 
         // Startup Load
         window.onload = async () => {
@@ -361,7 +362,7 @@
                             else if (h.includes('الكود')) obj.code = val;
                             else if (h.includes('الاسم') || h.includes('الاســــــــم')) obj.name = val;
                             else if (h.includes('الهاتف') || h.includes('الرقم') || h.includes('الموبايل')) obj.phone = val;
-                            else if (h.includes('العنوان') || h.includes('المحافظه')) obj.address = val;
+                            else if (h.includes('العنوان') || h.includes('المافظه') || h.includes('المحافظه')) obj.address = val;
                             else if (h.includes('الشركه') || h.includes('الراسله')) obj.sender_company = val;
                             else if (h.includes('السعر')) obj.price = parseFloat(val) || 0;
                             else if (h.includes('المستلم') || h.includes('المحصل')) obj.collected_amount = parseFloat(val) || 0;
@@ -385,7 +386,7 @@
                     // Rolling 6 Sheets Cleanup
                     await cleanupOldSheets();
 
-                    alert(`تم رفع الشيت بظبط! إجمالي الشحنات المضافة: ${parsedData.length}`);
+                    alert(`تم رفع الشيت بنجاح! إجمالي الشحنات المضافة: ${parsedData.length}`);
                     await loadSheetsAndData();
 
                 } catch (err) {
@@ -438,4 +439,5 @@
         }
     </script>
 </body>
-</html>
+    </html>
+    
