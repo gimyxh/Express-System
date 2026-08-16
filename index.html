@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الشحن الاحترافي</title>
+    <!-- Bootstrap 5 RTL -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- SheetJS (Excel) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: none; margin-bottom: 20px; }
+        .table-responsive { max-height: 600px; overflow-y: auto; }
+        .stat-card { border-right: 4px solid; }
+        .stat-delivered { border-color: #198754; background-color: #e8f5e9; }
+        .stat-pending { border-color: #ffc107; background-color: #fffde7; }
+        .stat-returned { border-color: #dc3545; background-color: #ffebee; }
+    </style>
+</head>
+<body>
+
+    <!-- Login Screen -->
+    <div id="login-container" class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-5">
+                <div class="card p-4 text-center">
+                    <i class="fa-solid fa-truck-fast fa-3x text-primary mb-3"></i>
+                    <h4>نظام الشحن الاحترافي</h4>
+                    <p class="text-muted">سجّل الدخول للمتابعة</p>
+                    <form id="login-form" onsubmit="handleLogin(event)">
+                        <input type="text" id="username" class="form-control mb-3" placeholder="اسم المستخدم" required>
+                        <input type="password" id="password" class="form-control mb-3" placeholder="كلمة المرور" required>
+                        <button type="submit" class="btn btn-primary w-100">دخول</button>
+                    </form>
+                    <div id="login-error" class="alert alert-danger mt-3 d-none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App UI -->
+    <div id="app-container" class="d-none">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#"><i class="fa-solid fa-truck-fast"></i> نظام الشحن الاحترافي</a>
+                <div class="d-flex align-items-center text-white">
+                    <span class="me-3" id="user-badge"></span>
+                    <button onclick="logout()" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-right-from-bracket"></i> خروج</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container-fluid px-4">
+            
+            <!-- Filter & Search -->
+            <div class="card p-3">
+                <h5><i class="fa-solid fa-filter text-primary"></i> بحث وفلترة داخل الكشف</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <input type="text" id="search-input" oninput="renderTable()" class="form-control" placeholder="🔍 بحث بالاسم، الكود، الهاتف، العنوان، أو المندوب...">
+                    </div>
+                    <div class="col-md-6">
+                        <select id="status-filter" onchange="renderTable()" class="form-select">
+                            <option value="">جميع الحالات</option>
+                            <option value="تم الاستلام">تم الاستلام</option>
+                            <option value="مؤجل / قيد التوصيل">مؤجل / قيد التوصيل</option>
+                            <option value="مرتجع">مرتجع</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card p-3 stat-card stat-delivered">
+                        <h6>تم الاستلام</h6>
+                        <h3 id="stat-delivered-val">0</h3>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3 stat-card stat-pending">
+                        <h6>مؤجل / قيد التوصيل</h6>
+                        <h3 id="stat-pending-val">0</h3>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3 stat-card stat-returned">
+                        <h6>مرتجع</h6>
+                        <h3 id="stat-returned-val">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Tools -->
+            <div id="admin-tools" class="card p-3 d-none">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span class="fw-bold me-2"><i class="fa-solid fa-user-gear"></i> أدوات المدير:</span>
+                    <label class="btn btn-success">
+                        <i class="fa-solid fa-file-excel"></i> استيراد Excel
+                        <input type="file" id="excel-input" accept=".xlsx, .xls" class="d-none" onchange="importExcel(event)">
+                    </label>
+                    <button class="btn btn-primary" onclick="openAddShipmentModal()"><i class="fa-solid fa-plus"></i> إضافة شحنة</button>
+                    <button class="btn btn-dark" onclick="openAddCourierModal()"><i class="fa-solid fa-user-plus"></i> إضافة مندوب</button>
+                </div>
+            </div>
+
+            <!-- Table & Sheets Selector -->
+            <div class="card p-3">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <h5><i class="fa-solid fa-list-check text-primary"></i> جدول الشحنات</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="fw-bold">الكشف:</label>
+                        <select id="sheet-select" class="form-select w-auto" onchange="changeActiveSheet()">
+                            <!-- Sheets Options -->
+                        </select>
+                        <button onclick="exportExcel()" class="btn btn-outline-success"><i class="fa-solid fa-file-export"></i> تصدير Excel</button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle text-center">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>مسلسل</th>
+                                <th>الكود</th>
+                                <th>الاسم</th>
+                                <th>الهاتف</th>
+                                <th>العنوان</th>
+                                <th>الشركة الراسلة</th>
+                                <th>السعر</th>
+                                <th>المبلغ المحصل</th>
+                                <th>الشحن</th>
+                                <th>الحالة</th>
+                                <th>المندوب</th>
+                                <th>ملاحظات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shipments-body">
+                            <tr><td colspan="12" class="text-center p-4">جاري تحميل البيانات...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- Supabase Config ---
+        const SUPABASE_URL = "YOUR_SUPABASE_URL";
+        const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentShipments = [];
+        let activeSheets = [];
+        let selectedSheetDate = "";
+
+        // Startup Load
+        window.onload = async () => {
+            const user = JSON.parse(localStorage.getItem('express_user') || 'null');
+            if (user) {
+                showApp(user);
+            }
+        };
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            
+            // Login check
+            if (u === 'admin' && p === 'admin123') {
+                const user = { name: 'المدير', role: 'admin' };
+                localStorage.setItem('express_user', JSON.stringify(user));
+                showApp(user);
+            } else {
+                showError('اسم المستخدم أو كلمة المرور غير صحيحة');
+            }
+        }
+
+        function showError(msg) {
+            const err = document.getElementById('login-error');
+            err.innerText = msg;
+            err.classList.remove('d-none');
+        }
+
+        function logout() {
+            localStorage.removeItem('express_user');
+            location.reload();
+        }
+
+        function showApp(user) {
+            document.getElementById('login-container').classList.add('d-none');
+            document.getElementById('app-container').classList.remove('d-none');
+            document.getElementById('user-badge').innerText = `${user.role === 'admin' ? 'المدير' : 'مندوب'}: ${user.name}`;
+
+            if (user.role === 'admin') {
+                document.getElementById('admin-tools').classList.remove('d-none');
+            }
+            loadSheetsAndData();
+        }
+
+        async function loadSheetsAndData() {
+            try {
+                // Fetch unique dates
+                const { data, error } = await _supabase
+                    .from('shipments')
+                    .select('sheet_date')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                const dates = [...new Set((data || []).map(item => item.sheet_date).filter(Boolean))];
+                activeSheets = dates;
+
+                const select = document.getElementById('sheet-select');
+                select.innerHTML = '';
+
+                if (dates.length === 0) {
+                    select.innerHTML = '<option value="">لا توجد كشوفات</option>';
+                    renderTableData([]);
+                    return;
+                }
+
+                dates.forEach((d, idx) => {
+                    select.innerHTML += `<option value="${d}">${d} ${idx === 0 ? '(أحدث كشف)' : ''}</option>`;
+                });
+
+                selectedSheetDate = dates[0];
+                select.value = selectedSheetDate;
+                await fetchShipmentsByDate(selectedSheetDate);
+
+            } catch (err) {
+                console.error("Error loading data:", err);
+                renderTableData([]);
+            }
+        }
+
+        async function fetchShipmentsByDate(dateStr) {
+            try {
+                const { data, error } = await _supabase
+                    .from('shipments')
+                    .select('*')
+                    .eq('sheet_date', dateStr);
+
+                if (error) throw error;
+                currentShipments = data || [];
+                renderTable();
+            } catch (err) {
+                console.error("Fetch error:", err);
+                renderTableData([]);
+            }
+        }
+
+        async function changeActiveSheet() {
+            selectedSheetDate = document.getElementById('sheet-select').value;
+            await fetchShipmentsByDate(selectedSheetDate);
+        }
+
+        function renderTable() {
+            const q = document.getElementById('search-input').value.toLowerCase().trim();
+            const statusFilter = document.getElementById('status-filter').value;
+
+            const filtered = currentShipments.filter(item => {
+                const matchQuery = !q || 
+                    (item.name && item.name.toLowerCase().includes(q)) ||
+                    (item.code && item.code.toLowerCase().includes(q)) ||
+                    (item.phone && item.phone.toLowerCase().includes(q)) ||
+                    (item.address && item.address.toLowerCase().includes(q)) ||
+                    (item.courier && item.courier.toLowerCase().includes(q));
+
+                const matchStatus = !statusFilter || item.status === statusFilter;
+                return matchQuery && matchStatus;
+            });
+
+            renderTableData(filtered);
+            updateStats(filtered);
+        }
+
+        function renderTableData(data) {
+            const tbody = document.getElementById('shipments-body');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" class="text-center p-4 text-muted">لا توجد شحنات لعرضها.</td></tr>';
+                return;
+            }
+
+            data.forEach((item, i) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${item.serial || (i + 1)}</td>
+                        <td>${item.code || '-'}</td>
+                        <td class="fw-bold">${item.name || '-'}</td>
+                        <td>${item.phone || '-'}</td>
+                        <td>${item.address || '-'}</td>
+                        <td>${item.sender_company || '-'}</td>
+                        <td>${item.price || 0}</td>
+                        <td>${item.collected_amount || 0}</td>
+                        <td>${item.shipping_cost || 0}</td>
+                        <td><span class="badge ${getStatusBadgeClass(item.status)}">${item.status || 'قيد التوصيل'}</span></td>
+                        <td>${item.courier || '-'}</td>
+                        <td>${item.notes || '-'}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function getStatusBadgeClass(status) {
+            if (status === 'تم الاستلام') return 'bg-success';
+            if (status === 'مرتجع') return 'bg-danger';
+            return 'bg-warning text-dark';
+        }
+
+        function updateStats(data) {
+            let del = 0, pen = 0, ret = 0;
+            data.forEach(item => {
+                if (item.status === 'تم الاستلام') del++;
+                else if (item.status === 'مرتجع') ret++;
+                else pen++;
+            });
+            document.getElementById('stat-delivered-val').innerText = del;
+            document.getElementById('stat-pending-val').innerText = pen;
+            document.getElementById('stat-returned-val').innerText = ret;
+        }
+
+        // --- Import Excel (Starts Row 2) & Rolling 6 Sheets ---
+        async function importExcel(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+                try {
+                    const workbook = XLSX.read(evt.target.result, { type: 'binary' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawJson = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                    if (rawJson.length < 2) {
+                        alert("الشيت فارغ أو لا يحتوي على صفوف بيانات كافية!");
+                        return;
+                    }
+
+                    // Row 2 headers (Index 1)
+                    const headers = rawJson[1].map(h => String(h || '').trim());
+                    const rows = rawJson.slice(2);
+
+                    const todayStr = new Date().toISOString().split('T')[0];
+
+                    const parsedData = rows.map(row => {
+                        let obj = { sheet_date: todayStr };
+                        headers.forEach((h, idx) => {
+                            const val = row[idx] !== undefined ? String(row[idx]).trim() : '';
+                            if (h.includes('مسلسل')) obj.serial = val;
+                            else if (h.includes('الكود')) obj.code = val;
+                            else if (h.includes('الاسم') || h.includes('الاســــــــم')) obj.name = val;
+                            else if (h.includes('الهاتف') || h.includes('الرقم') || h.includes('الموبايل')) obj.phone = val;
+                            else if (h.includes('العنوان') || h.includes('المحافظه')) obj.address = val;
+                            else if (h.includes('الشركه') || h.includes('الراسله')) obj.sender_company = val;
+                            else if (h.includes('السعر')) obj.price = parseFloat(val) || 0;
+                            else if (h.includes('المستلم') || h.includes('المحصل')) obj.collected_amount = parseFloat(val) || 0;
+                            else if (h.includes('الشحن')) obj.shipping_cost = parseFloat(val) || 0;
+                            else if (h.includes('الحاله') || h.includes('الحالة')) obj.status = val;
+                            else if (h.includes('ملاحظات')) obj.notes = val;
+                            else if (h.includes('المندوب')) obj.courier = val;
+                        });
+                        return obj;
+                    }).filter(r => r.name || r.code || r.phone);
+
+                    if (parsedData.length === 0) {
+                        alert("لم يتم العثور على شحنات صالحة للإضافة!");
+                        return;
+                    }
+
+                    // Insert shipments
+                    const { error } = await _supabase.from('shipments').insert(parsedData);
+                    if (error) throw error;
+
+                    // Rolling 6 Sheets Cleanup
+                    await cleanupOldSheets();
+
+                    alert(`تم رفع الشيت بظبط! إجمالي الشحنات المضافة: ${parsedData.length}`);
+                    await loadSheetsAndData();
+
+                } catch (err) {
+                    alert("حدث خطأ أثناء رفع الشيت: " + err.message);
+                }
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        async function cleanupOldSheets() {
+            try {
+                const { data } = await _supabase.from('shipments').select('sheet_date').order('created_at', { ascending: false });
+                const dates = [...new Set((data || []).map(i => i.sheet_date).filter(Boolean))];
+
+                if (dates.length > 6) {
+                    const datesToRemove = dates.slice(6);
+                    await _supabase.from('shipments').delete().in('sheet_date', datesToRemove);
+                }
+            } catch (err) {
+                console.error("Cleanup error:", err);
+            }
+        }
+
+        // --- Export to Excel ---
+        function exportExcel() {
+            if (currentShipments.length === 0) {
+                alert("لا توجد بيانات لتصديرها!");
+                return;
+            }
+
+            const exportData = currentShipments.map((item, i) => ({
+                "مسلسل": item.serial || (i + 1),
+                "الكود": item.code || '',
+                "الاسم": item.name || '',
+                "الهاتف": item.phone || '',
+                "العنوان": item.address || '',
+                "الشركة الراسلة": item.sender_company || '',
+                "السعر": item.price || 0,
+                "المبلغ المحصل": item.collected_amount || 0,
+                "مبلغ الشحن": item.shipping_cost || 0,
+                "الحالة": item.status || '',
+                "المندوب": item.courier || '',
+                "ملاحظات": item.notes || ''
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "الشحنات");
+            XLSX.writeFile(wb, `شحنات_${selectedSheetDate || 'الكشف'}.xlsx`);
+        }
+    </script>
+</body>
+</html>
